@@ -151,7 +151,6 @@ class Solver(object):
                 neg_ones, neg_twos = self.get_pairs(combined_images,
                                                     label_set,
                                                     set_type='negative')
-                print pos_ones.shape, pos_ones.dtype, step
                 feed_dict = {model.images: batch_images,
                              model.labels: batch_labels,
                              model.pos_ones: pos_ones,
@@ -168,10 +167,20 @@ class Solver(object):
                                                 model.loss, model.accuracy],
                                                feed_dict)
                     rand_idxs = np.random.permutation(test_images.shape[0])[:self.batch_size]
+                    pos_ones, pos_twos = self.get_pairs(combined_images,
+                                                        label_set,
+                                                        set_type='positive')
+                    neg_ones, neg_twos = self.get_pairs(combined_images,
+                                                        label_set,
+                                                        set_type='negative')
                     test_acc, _ = \
                         sess.run(fetches=[model.accuracy, model.loss],
                                  feed_dict={model.images: test_images[rand_idxs],
-                                            model.labels: test_labels[rand_idxs]})
+                                            model.labels: test_labels[rand_idxs],
+                                            model.pos_ones: pos_ones,
+                                            model.pos_twos: pos_twos,
+                                            model.neg_ones: neg_ones,
+                                            model.neg_twos: neg_twos})
                     summary_writer.add_summary(summary, step)
                     print ('Step: [%d/%d] loss: [%.6f] train acc: [%.2f] test acc [%.2f]'
                            % (step + 1, self.pretrain_iter, l, acc, test_acc))

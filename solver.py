@@ -18,7 +18,7 @@ class Solver(object):
                  sample_save_path='sample',
                  model_save_path='model',
                  pretrained_model='model/pre_model-4000',
-                 test_model='model/dtn-400',
+                 test_model='model/dtn_ext-400',
                  src_disc_rep=1,
                  src_gen_rep=1,
                  trg_disc_rep=1,
@@ -126,7 +126,6 @@ class Solver(object):
         test_labels = np.hstack((test_labels_r, test_labels_c))
         combined_images = self.load_combined()
 
-        # label_set = set(range(self.n_classes))
         label_set = set(np.hstack((train_labels, test_labels)))
 
         # build a graph
@@ -193,8 +192,12 @@ class Solver(object):
 
     def train(self):
         # load faces
-        real_images, _ = self.load_real(self.real_dir, split='train')
-        caric_images, _ = self.load_caric(self.caric_dir, split='train')
+        real_images, real_labels = self.load_real(self.real_dir,
+                                                  split='train')
+        caric_images, caric_labels = self.load_caric(self.caric_dir,
+                                                     split='train')
+        combined_images = self.load_combined()
+        label_set = set(np.hstack((real_labels, caric_labels)))
 
         # build a graph
         model = self.model
@@ -224,7 +227,18 @@ class Solver(object):
                 i = step % int(real_images.shape[0] / self.batch_size)
                 # train the model for source domain S
                 src_images = real_images[i * self.batch_size:(i + 1) * self.batch_size]
-                feed_dict = {model.src_images: src_images}
+                pos_ones, pos_twos = self.get_pairs(combined_images,
+                                                    label_set,
+                                                    set_type='positive')
+                neg_ones, neg_twos = self.get_pairs(combined_images,
+                                                    label_set,
+                                                    set_type='negative')
+
+                feed_dict = {model.src_images: src_images,
+                             model.pos_ones: pos_ones,
+                             model.pos_twos: pos_twos,
+                             model.neg_ones: neg_ones,
+                             model.neg_twos: neg_twos}
 
                 for _ in xrange(self.src_disc_rep):
                     sess.run(model.d_train_op_src, feed_dict)
@@ -251,7 +265,11 @@ class Solver(object):
                 j = step % int(caric_images.shape[0] / self.batch_size)
                 trg_images = caric_images[j * self.batch_size:(j + 1) * self.batch_size]
                 feed_dict = {model.src_images: src_images,
-                             model.trg_images: trg_images}
+                             model.trg_images: trg_images,
+                             model.pos_ones: pos_ones,
+                             model.pos_twos: pos_twos,
+                             model.neg_ones: neg_ones,
+                             model.neg_twos: neg_twos}
                 for _ in xrange(self.trg_disc_rep):
                     sess.run(model.d_train_op_trg, feed_dict)
                 for _ in xrange(self.trg_gen_rep):
@@ -268,8 +286,8 @@ class Solver(object):
 
                 if (step + 1) % 200 == 0:
                     saver.save(sess, os.path.join(
-                        self.model_save_path, 'dtn'), global_step=step + 1)
-                    print ('model/dtn-%d saved' % (step + 1))
+                        self.model_save_path, 'dtn_ext'), global_step=step + 1)
+                    print ('model/dtn_ext-%d saved' % (step + 1))
 
     def eval(self):
         # build model

@@ -91,27 +91,24 @@ class Solver(object):
             merged[i * h:(i + 1) * h, (j * 2 + 1) * h:(j * 2 + 2) * h, :] = t
         return merged
 
-    def get_pairs(self, combined_images, label_set):
-        pos_pairs = np.ndarray(self.batch_size, 2, 64, 64, 3)
-        neg_pairs = np.ndarray(self.batch_size, 2, 64, 64, 3)
-
+    def get_pairs(self, combined_images, label_set, set_type='positive'):
         def get_pos_pair(label):
-            return np.asarray(sample(combined_images[label], 2))
+            return sample(combined_images[label], 2)
 
         def get_neg_pair(label):
             neg_lbl = sample(label_set - set([label]), 1)[0]
             neg_img = sample(combined_images[neg_lbl], 1)[0]
             img = sample(combined_images[label], 1)[0]
-            return np.asarray([img, neg_img])
+            return [img, neg_img]
 
         # some labels for positive pairs
         perm = sample(label_set, self.batch_size)
-        pos_pairs = np.asarray(map(get_pos_pair, perm))
-        neg_pairs = np.asarray(map(get_neg_pair, perm))
-
-        print 'shapes of pos and neg pairs are', pos_pairs.shape, neg_pairs.shape
-        exit()
-        return pos_pairs, neg_pairs
+        if set_type == 'positive':
+            pos_ones, pos_twos = zip(*map(get_pos_pair, perm))
+            return np.asarray(pos_ones), np.asarray(pos_twos)
+        else:
+            neg_ones, neg_twos = zip(*map(get_neg_pair, perm))
+            return np.asarray(neg_ones), np.asarray(neg_twos)
 
     def pretrain(self):
         # load real faces
@@ -148,12 +145,19 @@ class Solver(object):
                                             (i + 1) * self.batch_size]
                 batch_labels = train_labels[i * self.batch_size:
                                             (i + 1) * self.batch_size]
-                pos_pairs, neg_pairs = self.get_pairs(combined_images,
-                                                      label_set)
+                pos_ones, pos_twos = self.get_pairs(combined_images,
+                                                    label_set,
+                                                    set_type='positive')
+                neg_ones, neg_twos = self.get_pairs(combined_images,
+                                                    label_set,
+                                                    set_type='negative')
+                print pos_ones.shape, pos_ones.dtype, step
                 feed_dict = {model.images: batch_images,
                              model.labels: batch_labels,
-                             model.pos_pairs: pos_pairs,
-                             model.neg_pairs: neg_pairs}
+                             model.pos_ones: pos_ones,
+                             model.pos_twos: pos_twos,
+                             model.neg_ones: neg_ones,
+                             model.neg_twos: neg_twos}
                 sess.run(model.train_op, feed_dict)
                 # lg, ls = sess.run([model.logits, model.labels], feed_dict)
                 # print 'logits : max ', np.max(lg), 'min', np.min(lg), 'mean',

@@ -134,6 +134,12 @@ class Solver(object):
 
         with tf.Session(config=self.config) as sess:
             tf.global_variables_initializer().run()
+            if self.pretrained_model != '':
+                print ('loading pretrained model F..')
+                variables_to_restore = slim.get_model_variables(
+                    scope='content_extractor')
+                restorer = tf.train.Saver(variables_to_restore)
+                restorer.restore(sess, self.pretrained_model)
             saver = tf.train.Saver()
             summary_writer = tf.summary.FileWriter(
                 logdir=self.log_dir, graph=tf.get_default_graph())

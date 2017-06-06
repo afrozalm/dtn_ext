@@ -13,7 +13,7 @@ flags.DEFINE_float('learning_rate', 1e-4, "learning rate for Adam")
 flags.DEFINE_integer('pretrain_iter', 20000, "iterations to pretrain model")
 flags.DEFINE_integer('train_iter', 20000, "iterations to train model")
 flags.DEFINE_integer('sample_iter', 100, "iterations to get images")
-flags.DEFINE_string('pretrained_model', 'model/pre_model-4000',
+flags.DEFINE_string('pretrained_model', '',
                     "location of pretrained model")
 flags.DEFINE_string('test_model', 'model/dtn-400', "location for test model")
 flags.DEFINE_string('model_save_path', 'model',

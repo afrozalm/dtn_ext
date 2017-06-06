@@ -17,7 +17,7 @@ class DTN(object):
         self.ucn_weight = ucn_weight
         self.f_weight = f_weight
 
-    def content_extractor(self, images, reuse=False):
+    def content_extractor(self, images, scope_suffix, reuse=False):
         n_classes = self.n_classes
         # images: (batch, 64, 64, 3) or (batch, 64, 64, 1)
         if images.get_shape()[3] == 1:
@@ -36,26 +36,31 @@ class DTN(object):
                                                               'pretrain']):
 
                     # (batch_size, 32, 32, 32)
-                    net = slim.conv2d(images, 32, [3, 3], scope='conv1')
-                    net = slim.batch_norm(net, scope='bn1')
+                    net = slim.conv2d(images, 32, [3, 3],
+                                      scope='conv1' + scope_suffix)
+                    net = slim.batch_norm(net, scope='bn1' + scope_suffix)
                     # (batch_size, 16, 16, 64)
-                    net = slim.conv2d(net, 64, [3, 3], scope='conv2')
-                    net = slim.batch_norm(net, scope='bn2')
+                    net = slim.conv2d(net, 64, [3, 3],
+                                      scope='conv2' + scope_suffix)
+                    net = slim.batch_norm(net, scope='bn2' + scope_suffix)
                     # (batch_size, 8, 8, 128)
-                    net = slim.conv2d(net, 128, [3, 3], scope='conv3')
-                    net = slim.batch_norm(net, scope='bn3')
+                    net = slim.conv2d(net, 128, [3, 3],
+                                      scope='conv3' + scope_suffix)
+                    net = slim.batch_norm(net, scope='bn3' + scope_suffix)
                     # (batch_size, 4, 4, 256)
-                    net = slim.conv2d(net, 256, [3, 3], scope='conv4')
-                    net = slim.batch_norm(net, scope='bn4')
+                    net = slim.conv2d(net, 256, [3, 3],
+                                      scope='conv4' + scope_suffix)
+                    net = slim.batch_norm(net, scope='bn4' + scope_suffix)
                     # (batch_size, 1, 1, 512)
-                    net = slim.conv2d(net, 512, [4, 4],
-                                      padding='VALID', scope='conv5')
+                    net = slim.conv2d(net, 512, [4, 4], padding='VALID',
+                                      scope='conv5' + scope_suffix)
                     net = slim.batch_norm(net, activation_fn=tf.nn.tanh,
-                                          scope='bn5')
+                                          scope='bn5' + scope_suffix)
                     if self.mode == 'pretrain':
                         # (batch_size, 1, 1, n_classes)
                         net = slim.conv2d(net, n_classes, [1, 1],
-                                          padding='VALID', scope='out')
+                                          padding='VALID',
+                                          scope='out' + scope_suffix)
                         # (batch_size, n_classes)
                         net = slim.flatten(net)
                     return net
@@ -131,21 +136,26 @@ class DTN(object):
             self.images = tf.placeholder(tf.float32, [None, 64, 64, 3],
                                          'real_faces')
             self.labels = tf.placeholder(tf.int64, [None], 'face_labels')
-            self.pos_pairs = tf.placeholder(tf.float32, [None, 2, 64, 64, 3],
-                                            'positive_pairs')
-            self.neg_pairs = tf.placeholder(tf.float32, [None, 2, 64, 64, 3],
-                                            'negative_pairs')
-
-            # getting feature vecs for pairs
-            self.pos_ones, self.pos_twos = tf.split(self.pos_pairs, [1, 1], 1)
-            self.neg_ones, self.neg_twos = tf.split(self.neg_pairs, [1, 1], 1)
+            self.pos_ones = tf.placeholder(tf.float32, [None, 64, 64, 3],
+                                           'positive_pair_one')
+            self.pos_twos = tf.placeholder(tf.float32, [None, 64, 64, 3],
+                                           'positive_pair_two')
+            self.neg_ones = tf.placeholder(tf.float32, [None, 64, 64, 3],
+                                           'negative_pair_one')
+            self.neg_twos = tf.placeholder(tf.float32, [None, 64, 64, 3],
+                                           'negative_pair_two')
 
             # logits and accuracy
-            self.f_pos1 = self.content_extractor(self.pos_ones)
-            self.f_pos2 = self.content_extractor(self.pos_twos)
-            self.f_neg1 = self.content_extractor(self.neg_ones)
-            self.f_neg2 = self.content_extractor(self.neg_twos)
-            self.logits = self.content_extractor(self.images)
+            self.f_pos1 = self.content_extractor(self.pos_ones,
+                                                 scope_suffix='pos_one')
+            self.f_pos2 = self.content_extractor(self.pos_twos,
+                                                 scope_suffix='pos_two')
+            self.f_neg1 = self.content_extractor(self.neg_ones,
+                                                 scope_suffix='neg_one')
+            self.f_neg2 = self.content_extractor(self.neg_twos,
+                                                 scope_suffix='neg_two')
+            self.logits = self.content_extractor(self.images,
+                                                 scope_suffix='imgs')
             self.pred = tf.argmax(self.logits, 1)
             self.correct_pred = tf.equal(self.pred, self.labels)
             self.accuracy = tf.reduce_mean(tf.cast(self.correct_pred,
@@ -169,13 +179,13 @@ class DTN(object):
 
             # summary op
             loss_class_summary = tf.summary.scalar('classification_loss',
-                                                   self.loss_classification)
+                                                   self.loss_class)
             loss_ucn_summary = tf.summary.scalar('ucn loss', self.loss_ucn)
-            loss_ucn_pos_summary = tf.summary('ucn pos loss',
-                                              self.loss_ucn_pos)
-            loss_ucn_neg_summary = tf.summary('ucn neg loss',
-                                              self.loss_ucn_neg)
-            loss_summary = tf.summary('combined loss', self.loss)
+            loss_ucn_pos_summary = tf.summary.scalar('ucn pos loss',
+                                                     self.loss_ucn_pos)
+            loss_ucn_neg_summary = tf.summary.scalar('ucn neg loss',
+                                                     self.loss_ucn_neg)
+            loss_summary = tf.summary.scalar('combined loss', self.loss)
             accuracy_summary = tf.summary.scalar('accuracy', self.accuracy)
             logits_summary = tf.summary.histogram('probability distribution',
                                                   tf.nn.softmax(self.logits))

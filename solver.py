@@ -158,12 +158,8 @@ class Solver(object):
                 logdir=self.log_dir, graph=tf.get_default_graph())
 
             for step in range(self.pretrain_iter + 1):
-                # i = step % int(train_images.shape[0] / self.batch_size)
-                # batch_images = train_images[i * self.batch_size:
-                #                             (i + 1) * self.batch_size]
-                # batch_labels = train_labels[i * self.batch_size:
-                #                             (i + 1) * self.batch_size]
-                batch_labels, batch_images = self.loader.next_group_batch('train')
+                batch_labels, batch_images = \
+                    self.loader.next_group_batch('train')
                 pos_ones, pos_twos = self.get_pairs(combined_images,
                                                     label_set,
                                                     set_type='positive')
@@ -177,15 +173,14 @@ class Solver(object):
                              model.neg_ones: neg_ones,
                              model.neg_twos: neg_twos}
                 sess.run(model.train_op, feed_dict)
-                # lg, ls = sess.run([model.logits, model.labels], feed_dict)
-                # print 'logits : max ', np.max(lg), 'min', np.min(lg), 'mean',
-                # np.mean(lg), 'labels : max', np.max(ls)
 
                 if (step + 1) % 10 == 0:
                     summary, l, acc = sess.run([model.summary_op,
                                                 model.loss, model.accuracy],
                                                feed_dict)
-                    rand_idxs = np.random.permutation(test_images.shape[0])[:self.batch_size]
+                    # rand_idxs = np.random.permutation(test_images.shape[0])[:self.batch_size]
+                    batch_labels, batch_images = \
+                        self.loader.next_group_batch('test')
                     pos_ones, pos_twos = self.get_pairs(combined_images,
                                                         label_set,
                                                         set_type='positive')
@@ -194,8 +189,8 @@ class Solver(object):
                                                         set_type='negative')
                     test_acc, _ = \
                         sess.run(fetches=[model.accuracy, model.loss],
-                                 feed_dict={model.images: test_images[rand_idxs],
-                                            model.labels: test_labels[rand_idxs],
+                                 feed_dict={model.images: batch_images,
+                                            model.labels: batch_labels,
                                             model.pos_ones: pos_ones,
                                             model.pos_twos: pos_twos,
                                             model.neg_ones: neg_ones,
@@ -219,6 +214,11 @@ class Solver(object):
         combined_images = self.load_combined()
         label_set = set(np.hstack((real_labels, caric_labels)))
 
+        self.loader.add_dataset('real_images', real_images)
+        self.loader.add_dataset('caric_images', caric_images)
+        self.loader.add_dataset('real_labels', real_labels)
+        self.loader.add_dataset('caric_labels', caric_labels)
+
         # build a graph
         model = self.model
         model.build_model()
@@ -233,7 +233,8 @@ class Solver(object):
             tf.global_variables_initializer().run()
             # restore variables of F
             print ('loading pretrained model F..')
-            variables_to_restore = slim.get_model_variables(scope='content_extractor')
+            variables_to_restore = \
+                slim.get_model_variables(scope='content_extractor')
             restorer = tf.train.Saver(variables_to_restore)
             restorer.restore(sess, self.pretrained_model)
             summary_writer = tf.summary.FileWriter(
@@ -245,8 +246,7 @@ class Solver(object):
             for step in range(self.train_iter + 1):
 
                 i = step % int(real_images.shape[0] / self.batch_size)
-                # train the model for source domain S
-                src_images = real_images[i * self.batch_size:(i + 1) * self.batch_size]
+                src_images = self.loader.next_batch('real_images')
                 pos_ones, pos_twos = self.get_pairs(combined_images,
                                                     label_set,
                                                     set_type='positive')
@@ -282,8 +282,9 @@ class Solver(object):
                            % (step + 1, self.train_iter, dl, gl, fl))
 
                 # train the model for target domain T
-                j = step % int(caric_images.shape[0] / self.batch_size)
-                trg_images = caric_images[j * self.batch_size:(j + 1) * self.batch_size]
+                # j = step % int(caric_images.shape[0] / self.batch_size)
+                # trg_images = caric_images[j * self.batch_size:(j + 1) * self.batch_size]
+                trg_images = self.loader.next_batch('caric_images')
                 feed_dict = {model.src_images: src_images,
                              model.trg_images: trg_images,
                              model.pos_ones: pos_ones,
@@ -316,6 +317,8 @@ class Solver(object):
 
         # load real faces
         real_images, _ = self.load_real(self.real_dir)
+        self.loader.add_dataset(name='real_images',
+                                data_ptr=real_images)
 
         with tf.Session(config=self.config) as sess:
             # load trained parameters
@@ -326,14 +329,15 @@ class Solver(object):
             print ('start sampling..!')
             for i in range(self.sample_iter):
                 # train model for source domain S
-                batch_images = real_images[i * self.batch_size:(i + 1) * self.batch_size]
+                batch_images = self.loader.next_batch('real_images')
                 feed_dict = {model.images: batch_images}
                 sampled_batch_images = sess.run(model.sampled_images,
                                                 feed_dict)
 
                 # merge and save source images and sampled target images
                 merged = self.merge_images(batch_images, sampled_batch_images)
-                path = os.path.join(self.sample_save_path, 'sample-%d-to-%d.png' %
+                path = os.path.join(self.sample_save_path,
+                                    'sample-%d-to-%d.png' %
                                     (i * self.batch_size, (i + 1) * self.batch_size))
                 scipy.misc.imsave(path, merged)
                 print ('saved %s' % path)

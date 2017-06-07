@@ -15,7 +15,7 @@ class IndexIterator(object):
         return self
 
     def next(self, batch_size=None):
-        if batch_size is not None:
+        if batch_size is None:
             batch_size = self.batch_size
 
         if self.idx + batch_size < self.limit:
@@ -43,7 +43,7 @@ class GroupIterator(object):
         self.members.append(member)
         self.data_ptrs.append(data_ptr)
 
-    def next(self):
+    def next(self, batch_size=None):
         '''
         This function returns a list of ndarrays
         in the respective order of data pointers
@@ -52,7 +52,7 @@ class GroupIterator(object):
         See self.members to see the output order
         '''
         output = []
-        curr_perm = self.idx_iterator.next()
+        curr_perm = self.idx_iterator.next(batch_size)
         for data_ptr in self.data_ptrs:
             output.append(data_ptr[curr_perm])
 
@@ -77,7 +77,7 @@ class DataIterator(object):
         if batch_size is None:
             batch_size = self.batch_size
 
-        return self.data[self.idx_iterator.next(batch_size)]
+        return self.data_ptr[self.idx_iterator.next(batch_size)]
 
     def get_idx_samples(self, perm):
         assert isinstance(perm, np.ndarray)
@@ -96,7 +96,7 @@ class DataLoader(object):
             batch_size = self.batch_size
 
         if not isinstance(name, str):
-            raise TypeError()
+            raise TypeError('name should be string type')
         elif name in self.datasets:
             raise NameError(name +
                             ' already exists as a dataset. Give new name')

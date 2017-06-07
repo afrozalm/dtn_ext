@@ -5,6 +5,7 @@ import pickle
 import os
 import scipy.io
 import scipy.misc
+from data_loader import DataLoader
 from random import sample
 
 
@@ -24,6 +25,7 @@ class Solver(object):
                  trg_disc_rep=1,
                  trg_gen_rep=1):
 
+        self.loader = DataLoader(batch_size)
         self.model = model
         self.batch_size = batch_size
         self.n_classes = n_classes
@@ -128,6 +130,17 @@ class Solver(object):
 
         label_set = set(np.hstack((train_labels, test_labels)))
 
+        self.loader.add_dataset('train_images', train_images)
+        self.loader.add_dataset('test_images', test_images)
+        self.loader.add_dataset('train_labels', train_labels)
+        self.loader.add_dataset('test_labels', test_labels)
+        self.loader.link_datasets(group_name='train',
+                                  members=['train_labels',
+                                           'train_images'])
+        self.loader.link_datasets(group_name='test',
+                                  members=['test_labels',
+                                           'test_images'])
+
         # build a graph
         model = self.model
         model.build_model()
@@ -145,11 +158,12 @@ class Solver(object):
                 logdir=self.log_dir, graph=tf.get_default_graph())
 
             for step in range(self.pretrain_iter + 1):
-                i = step % int(train_images.shape[0] / self.batch_size)
-                batch_images = train_images[i * self.batch_size:
-                                            (i + 1) * self.batch_size]
-                batch_labels = train_labels[i * self.batch_size:
-                                            (i + 1) * self.batch_size]
+                # i = step % int(train_images.shape[0] / self.batch_size)
+                # batch_images = train_images[i * self.batch_size:
+                #                             (i + 1) * self.batch_size]
+                # batch_labels = train_labels[i * self.batch_size:
+                #                             (i + 1) * self.batch_size]
+                batch_labels, batch_images = self.loader.next_group_batch('train')
                 pos_ones, pos_twos = self.get_pairs(combined_images,
                                                     label_set,
                                                     set_type='positive')

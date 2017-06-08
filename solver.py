@@ -130,6 +130,7 @@ class Solver(object):
 
         label_set = set(np.hstack((train_labels, test_labels)))
 
+        self.loader.add_dataset('caric_faces', train_images_c)
         self.loader.add_dataset('train_images', train_images)
         self.loader.add_dataset('test_images', test_images)
         self.loader.add_dataset('train_labels', train_labels)
@@ -147,19 +148,17 @@ class Solver(object):
 
         with tf.Session(config=self.config) as sess:
             tf.global_variables_initializer().run()
-            if self.pretrained_model != '':
-                print ('loading pretrained model F..')
-                variables_to_restore = slim.get_model_variables(
-                    scope='content_extractor')
-                restorer = tf.train.Saver(variables_to_restore)
-                restorer.restore(sess, self.pretrained_model)
             saver = tf.train.Saver()
+            if self.pretrained_model != '':
+                print ('loading pretrained model ..')
+                saver.restore(sess, self.pretrained_model)
             summary_writer = tf.summary.FileWriter(
                 logdir=self.log_dir, graph=tf.get_default_graph())
 
             for step in range(self.pretrain_iter + 1):
                 batch_labels, batch_images = \
                     self.loader.next_group_batch('train')
+                caric_batch = self.loader.next_batch('caric_faces')
                 pos_ones, pos_twos = self.get_pairs(combined_images,
                                                     label_set,
                                                     set_type='positive')
@@ -168,6 +167,7 @@ class Solver(object):
                                                     set_type='negative')
                 feed_dict = {model.images: batch_images,
                              model.labels: batch_labels,
+                             model.caric_images: caric_batch,
                              model.pos_ones: pos_ones,
                              model.pos_twos: pos_twos,
                              model.neg_ones: neg_ones,
@@ -181,6 +181,7 @@ class Solver(object):
                     # rand_idxs = np.random.permutation(test_images.shape[0])[:self.batch_size]
                     batch_labels, batch_images = \
                         self.loader.next_group_batch('test')
+                    caric_batch = self.loader.next_batch('caric_faces')
                     pos_ones, pos_twos = self.get_pairs(combined_images,
                                                         label_set,
                                                         set_type='positive')
@@ -191,6 +192,7 @@ class Solver(object):
                         sess.run(fetches=[model.accuracy, model.loss],
                                  feed_dict={model.images: batch_images,
                                             model.labels: batch_labels,
+                                            model.caric_images: caric_batch,
                                             model.pos_ones: pos_ones,
                                             model.pos_twos: pos_twos,
                                             model.neg_ones: neg_ones,
@@ -231,15 +233,12 @@ class Solver(object):
         with tf.Session(config=self.config) as sess:
             # initialize G and D
             tf.global_variables_initializer().run()
-            # restore variables of F
-            print ('loading pretrained model F..')
-            variables_to_restore = \
-                slim.get_model_variables(scope='content_extractor')
-            restorer = tf.train.Saver(variables_to_restore)
-            restorer.restore(sess, self.pretrained_model)
+            saver = tf.train.Saver()
+            # restore variables of F and G
+            print ('loading pretrained model ..')
+            saver.restore(sess, self.pretrained_model)
             summary_writer = tf.summary.FileWriter(
                 logdir=self.log_dir, graph=tf.get_default_graph())
-            saver = tf.train.Saver()
 
             print ('start training..!')
             f_interval = 15

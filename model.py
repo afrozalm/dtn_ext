@@ -341,7 +341,7 @@ class DTN(object):
             g_loss_fake_trg_summary = tf.summary.scalar(
                 'trg_g_loss_fake', self.g_loss_fake_trg)
             g_loss_const_trg_summary = tf.summary.scalar(
-                'trg_g_loss_const', self.g_loss_const_trg)
+                'reconstruction_loss', self.g_loss_const_trg)
             g_loss_trg_summary = tf.summary.scalar('trg_g_loss',
                                                    self.g_loss_trg)
             origin_images_summary = tf.summary.image('trg_origin_images',

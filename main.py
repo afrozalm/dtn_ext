@@ -9,6 +9,7 @@ flags.DEFINE_float('ucn_weight', 5.0, "weight to ucn loss")
 flags.DEFINE_float('f_weight', 3.0, "weight to dtn's f-constancy")
 flags.DEFINE_integer('n_classes', 200, "number of classes")
 flags.DEFINE_integer('batch_size', 25, "set the value of batch_size")
+flags.DEFINE_float('reconst_weight', 15.0, "weight for reconstruction loss")
 flags.DEFINE_float('learning_rate', 1e-4, "learning rate for Adam")
 flags.DEFINE_integer('pretrain_iter', 20000, "iterations to pretrain model")
 flags.DEFINE_integer('train_iter', 20000, "iterations to train model")
@@ -35,7 +36,8 @@ def main(_):
                 n_classes=FLAGS.n_classes,
                 margin=FLAGS.margin,
                 ucn_weight=FLAGS.ucn_weight,
-                f_weight=FLAGS.f_weight)
+                f_weight=FLAGS.f_weight,
+                reconst_weight=FLAGS.reconst_weight)
 
     solver = Solver(model, batch_size=FLAGS.batch_size,
                     pretrain_iter=FLAGS.pretrain_iter,

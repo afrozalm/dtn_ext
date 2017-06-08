@@ -9,13 +9,14 @@ class DTN(object):
 
     def __init__(self, mode='train', learning_rate=0.0003,
                  n_classes=10, margin=2048.0, ucn_weight=5.0,
-                 f_weight=3.0):
+                 f_weight=3.0, reconst_weight=15.0):
         self.mode = mode
         self.learning_rate = learning_rate
         self.n_classes = n_classes
         self.margin = margin
         self.ucn_weight = ucn_weight
         self.f_weight = f_weight
+        self.reconst_weight = reconst_weight
 
     def content_extractor(self, images, reuse=False):
         n_classes = self.n_classes
@@ -316,7 +317,7 @@ class DTN(object):
             self.g_loss_fake_trg = tf.losses.softmax_cross_entropy(
                 class_three, self.logits_fake)  # L_GANG D3
             self.g_loss_const_trg = tf.reduce_mean(
-                tf.square(self.trg_images - self.reconst_images)) * 15.0  # L_TID
+                tf.square(self.trg_images - self.reconst_images)) * self.reconst_weight  # L_TID
             self.g_loss_trg = self.g_loss_fake_trg + self.g_loss_const_trg
 
             # optimizer

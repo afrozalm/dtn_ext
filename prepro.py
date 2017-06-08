@@ -83,12 +83,12 @@ def labeled_save(paths, name, celeb_dict):
 if __name__ == "__main__":
     HOME = os.path.expanduser('~')
     celeb_dict = get_celeb_dict(HOME + '/data/scripts/celeb_list.txt')
-    # simple_save(path='/data/reshaped_cropped_real/fullset.pkl',
-                # name='real-face',
-                # celeb_dict=celeb_dict)
-    # simple_save(path='/data/reshaped_cropped/fullset.pkl',
-                # name='caricature-face',
-                # celeb_dict=celeb_dict)
+    simple_save(path='/data/reshaped_cropped_real/fullset.pkl',
+                name='real-face',
+                celeb_dict=celeb_dict)
+    simple_save(path='/data/reshaped_cropped/fullset.pkl',
+                name='caricature-face',
+                celeb_dict=celeb_dict)
     labeled_save(paths=['/data/reshaped_cropped_real/fullset.pkl',
                         '/data/reshaped_cropped/fullset.pkl'],
                  name='class-combined.pkl',

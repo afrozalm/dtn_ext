@@ -59,11 +59,13 @@ class DTN(object):
                                           scope='bn5')
                     if self.mode == 'pretrain':
                         # (batch_size, 1, 1, n_classes)
-                        net = slim.conv2d(net, n_classes, [1, 1],
-                                          padding='VALID',
-                                          scope='out')
+                        logits = slim.conv2d(net, n_classes, [1, 1],
+                                             padding='VALID',
+                                             scope='out')
                         # (batch_size, n_classes)
-                        net = slim.flatten(net)
+                        logits = slim.flatten(logits)
+                        return net, logits
+
                     return net
 
     def generator(self, inputs, reuse=False):
@@ -135,8 +137,10 @@ class DTN(object):
     def build_model(self):
         if self.mode == 'pretrain':
             self.images = tf.placeholder(tf.float32, [None, 64, 64, 3],
-                                         'real_faces')
-            self.labels = tf.placeholder(tf.int64, [None], 'face_labels')
+                                         'all_faces')
+            self.labels = tf.placeholder(tf.int64, [None], 'all_labels')
+            self.caric_images = tf.placeholder(tf.float32, [None, 64, 64, 3],
+                                               'caric_faces')
             self.pos_ones = tf.placeholder(tf.float32, [None, 64, 64, 3],
                                            'positive_pair_one')
             self.pos_twos = tf.placeholder(tf.float32, [None, 64, 64, 3],
@@ -147,11 +151,13 @@ class DTN(object):
                                            'negative_pair_two')
 
             # logits and accuracy
-            self.f_pos1 = self.content_extractor(self.pos_ones)
-            self.f_pos2 = self.content_extractor(self.pos_twos, reuse=True)
-            self.f_neg1 = self.content_extractor(self.neg_ones, reuse=True)
-            self.f_neg2 = self.content_extractor(self.neg_twos, reuse=True)
-            self.logits = self.content_extractor(self.images, reuse=True)
+            self.f_pos1, _ = self.content_extractor(self.pos_ones)
+            self.f_pos2, _ = self.content_extractor(self.pos_twos, reuse=True)
+            self.f_neg1, _ = self.content_extractor(self.neg_ones, reuse=True)
+            self.f_neg2, _ = self.content_extractor(self.neg_twos, reuse=True)
+            _, self.logits = self.content_extractor(self.images, reuse=True)
+            self.fx, _ = self.content_extractor(self.caric_images, reuse=True)
+            self.reconst_images = self.generator(self.fx)
             self.pred = tf.argmax(self.logits, 1)
             self.correct_pred = tf.equal(self.pred, self.labels)
             self.accuracy = tf.reduce_mean(tf.cast(self.correct_pred,
@@ -167,30 +173,43 @@ class DTN(object):
             self.loss_class = \
                 tf.losses.sparse_softmax_cross_entropy(self.labels,
                                                        self.logits)
-            self.loss = self.loss_class + self.ucn_weight * self.loss_ucn
+            self.loss_reconst = tf.reduce_mean(tf.square(
+                self.caric_images - self.reconst_images))
+            self.loss = self.loss_class \
+                + self.loss_ucn * self.ucn_weight \
+                + self.loss_reconst * self.reconst_weight
             self.optimizer = tf.train.AdamOptimizer(self.learning_rate)
             self.train_op = slim.learning.create_train_op(self.loss,
                                                           self.optimizer,
                                                           clip_gradient_norm=1)
 
             # summary op
+            loss_reconst_summary = tf.summary.scalar('reconstruction_loss',
+                                                     self.loss_reconst)
             loss_class_summary = tf.summary.scalar('classification_loss',
                                                    self.loss_class)
-            loss_ucn_summary = tf.summary.scalar('ucn loss', self.loss_ucn)
+            loss_ucn_summary = tf.summary.scalar('ucn loss',
+                                                 self.loss_ucn)
             loss_ucn_pos_summary = tf.summary.scalar('ucn pos loss',
                                                      self.loss_ucn_pos)
             loss_ucn_neg_summary = tf.summary.scalar('ucn neg loss',
                                                      self.loss_ucn_neg)
-            loss_summary = tf.summary.scalar('combined loss', self.loss)
-            accuracy_summary = tf.summary.scalar('accuracy', self.accuracy)
+            loss_summary = tf.summary.scalar('combined loss',
+                                             self.loss)
+            accuracy_summary = tf.summary.scalar('accuracy',
+                                                 self.accuracy)
             logits_summary = tf.summary.histogram('probability distribution',
                                                   tf.nn.softmax(self.logits))
+            reconst_image_summary = tf.summary.image('reconst_images',
+                                                     self.reconst_images)
             self.summary_op = tf.summary.merge([loss_summary,
+                                                loss_reconst_summary,
                                                 loss_class_summary,
                                                 loss_ucn_summary,
                                                 loss_ucn_pos_summary,
                                                 loss_ucn_neg_summary,
                                                 logits_summary,
+                                                reconst_image_summary,
                                                 accuracy_summary])
 
         elif self.mode == 'eval':
@@ -316,9 +335,10 @@ class DTN(object):
             self.d_loss_trg = self.d_loss_fake_trg + self.d_loss_real_trg
             self.g_loss_fake_trg = tf.losses.softmax_cross_entropy(
                 class_three, self.logits_fake)  # L_GANG D3
-            self.g_loss_const_trg = tf.reduce_mean(
-                tf.square(self.trg_images - self.reconst_images)) * self.reconst_weight  # L_TID
-            self.g_loss_trg = self.g_loss_fake_trg + self.g_loss_const_trg
+            self.g_loss_const_trg = tf.reduce_mean(tf.square(
+                self.trg_images - self.reconst_images))  # L_TID
+            self.g_loss_trg = self.g_loss_fake_trg \
+                + self.g_loss_const_trg * self.reconst_weight
 
             # optimizer
             self.d_optimizer_trg = tf.train.AdamOptimizer(self.learning_rate)

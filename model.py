@@ -9,8 +9,10 @@ class DTN(object):
 
     def __init__(self, mode='train', learning_rate=0.0003,
                  n_classes=10, margin=2048.0, ucn_weight=5.0,
-                 f_weight=3.0, reconst_weight=15.0):
+                 f_weight=3.0, reconst_weight=15.0, pos_weight=1.0):
+
         self.mode = mode
+        self.pos_weight = pos_weight
         self.learning_rate = learning_rate
         self.n_classes = n_classes
         self.margin = margin
@@ -169,7 +171,8 @@ class DTN(object):
             neg_diff = tf.square(self.f_neg1 - self.f_neg2)
             self.loss_ucn_neg = tf.reduce_mean(
                 tf.maximum(0., self.margin - neg_diff))
-            self.loss_ucn = self.loss_ucn_pos + self.loss_ucn_neg
+            self.loss_ucn = \
+                self.loss_ucn_pos * self.pos_weight + self.loss_ucn_neg
             self.loss_class = \
                 tf.losses.sparse_softmax_cross_entropy(self.labels,
                                                        self.logits)
@@ -202,6 +205,8 @@ class DTN(object):
                                                   tf.nn.softmax(self.logits))
             reconst_image_summary = tf.summary.image('reconst_images',
                                                      self.reconst_images)
+            caric_image_summary = tf.summary.image('caric_images',
+                                                   self.caric_images)
             self.summary_op = tf.summary.merge([loss_summary,
                                                 loss_reconst_summary,
                                                 loss_class_summary,
@@ -210,6 +215,7 @@ class DTN(object):
                                                 loss_ucn_neg_summary,
                                                 logits_summary,
                                                 reconst_image_summary,
+                                                caric_image_summary,
                                                 accuracy_summary])
 
         elif self.mode == 'eval':
@@ -259,7 +265,8 @@ class DTN(object):
             neg_diff = tf.square(self.f_neg1 - self.f_neg2)
             self.loss_ucn_neg = tf.reduce_mean(
                 tf.maximum(0., self.margin - neg_diff))
-            self.loss_ucn = self.loss_ucn_pos + self.loss_ucn_neg
+            self.loss_ucn = \
+                self.loss_ucn_pos * self.pos_weight + self.loss_ucn_neg
 
             # dtn loss src
             self.d_loss_src = tf.losses.softmax_cross_entropy(

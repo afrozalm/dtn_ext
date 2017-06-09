@@ -205,6 +205,8 @@ class DTN(object):
                                                   tf.nn.softmax(self.logits))
             reconst_image_summary = tf.summary.image('reconst_images',
                                                      self.reconst_images)
+            caric_image_summary = tf.summary.image('caric_images',
+                                                   self.caric_images)
             self.summary_op = tf.summary.merge([loss_summary,
                                                 loss_reconst_summary,
                                                 loss_class_summary,
@@ -213,6 +215,7 @@ class DTN(object):
                                                 loss_ucn_neg_summary,
                                                 logits_summary,
                                                 reconst_image_summary,
+                                                caric_image_summary,
                                                 accuracy_summary])
 
         elif self.mode == 'eval':

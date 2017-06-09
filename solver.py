@@ -233,12 +233,22 @@ class Solver(object):
         with tf.Session(config=self.config) as sess:
             # initialize G and D
             tf.global_variables_initializer().run()
-            saver = tf.train.Saver()
             # restore variables of F and G
-            print ('loading pretrained model ..')
-            saver.restore(sess, self.pretrained_model)
+            print ('loading pretrained model F..')
+            f_variables_to_restore = \
+                slim.get_model_variables(scope='content_extractor')
+            f_restorer = tf.train.Saver(f_variables_to_restore)
+            f_restorer.restore(sess, self.pretrained_model)
+
+            print ('loading pretrained model G..')
+            g_variables_to_restore = \
+                slim.get_model_variables(scope='generator')
+            g_restorer = tf.train.Saver(g_variables_to_restore)
+            g_restorer.restore(sess, self.pretrained_model)
+
             summary_writer = tf.summary.FileWriter(
                 logdir=self.log_dir, graph=tf.get_default_graph())
+            saver = tf.train.Saver()
 
             print ('start training..!')
             f_interval = 15

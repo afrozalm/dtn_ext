@@ -1,9 +1,7 @@
 import numpy as np
 from random import sample
-from random import shuffle
 import os
 import pickle
-from PIL import Image
 
 
 def save_pickle(data, path):
@@ -99,12 +97,12 @@ def labeled_save(real_path, caric_path, name, celeb_dict):
 if __name__ == "__main__":
     HOME = os.path.expanduser('~')
     celeb_dict = get_celeb_dict(HOME + '/data/scripts/celeb_list.txt')
-    # simple_save(path='/data/reshaped_cropped_real/fullset.pkl',
-    #             name='real-face',
-    #             celeb_dict=celeb_dict)
-    # simple_save(path='/data/reshaped_cropped/fullset.pkl',
-    #             name='caricature-face',
-    #             celeb_dict=celeb_dict)
+    simple_save(path='/data/reshaped_cropped_real/fullset.pkl',
+                name='real-face',
+                celeb_dict=celeb_dict)
+    simple_save(path='/data/reshaped_cropped/fullset.pkl',
+                name='caricature-face',
+                celeb_dict=celeb_dict)
     labeled_save(real_path='/data/reshaped_cropped_real_64x64/fullset.pkl',
                  caric_path='/data/reshaped_cropped_64x64/fullset.pkl',
                  name='class-combined.pkl',

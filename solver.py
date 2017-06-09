@@ -76,8 +76,10 @@ class Solver(object):
         with open(self.combined_dir, 'rb') as f:
             combined_imgs = pickle.load(f)
         for lbl in combined_imgs:
-            mean = np.mean(combined_imgs[lbl])
-            combined_imgs[lbl] = combined_imgs[lbl] / mean - 1
+            mean_r = np.mean(combined_imgs[lbl]['real'])
+            mean_c = np.mean(combined_imgs[lbl]['caric'])
+            combined_imgs[lbl]['real'] = combined_imgs[lbl]['real'] / mean_r - 1
+            combined_imgs[lbl]['caric'] = combined_imgs[lbl]['caric'] / mean_c - 1
         print('finished loading combined_imgs')
         return combined_imgs
 
@@ -95,12 +97,36 @@ class Solver(object):
 
     def get_pairs(self, combined_images, label_set, set_type='positive'):
         def get_pos_pair(label):
-            return sample(combined_images[label], 2)
+            toss = np.random.uniform()
+            if toss < 0.5:
+                real_img = sample(combined_images[label]['real'], 1)[0]
+                caric_img = sample(combined_images[label]['caric'], 1)[0]
+                return [real_img, caric_img]
+            elif toss > 0.75:
+                try:
+                    return sample(combined_images[label]['caric'], 2)
+                except:
+                    return sample(combined_images[label]['real'], 2)
+            else:
+                try:
+                    return sample(combined_images[label]['real'], 2)
+                except:
+                    real_img = sample(combined_images[label]['real'], 1)[0]
+                    caric_img = sample(combined_images[label]['caric'], 1)[0]
+                    return [real_img, caric_img]
 
         def get_neg_pair(label):
+            toss = np.random.uniform()
             neg_lbl = sample(label_set - set([label]), 1)[0]
-            neg_img = sample(combined_images[neg_lbl], 1)[0]
-            img = sample(combined_images[label], 1)[0]
+            if toss < 0.5:
+                neg_img = sample(combined_images[neg_lbl]['real'], 1)[0]
+                img = sample(combined_images[label]['caric'], 1)[0]
+            elif toss > 0.75:
+                neg_img = sample(combined_images[neg_lbl]['caric'], 1)[0]
+                img = sample(combined_images[label]['caric'], 1)[0]
+            else:
+                neg_img = sample(combined_images[neg_lbl]['caric'], 1)[0]
+                img = sample(combined_images[label]['caric'], 1)[0]
             return [img, neg_img]
 
         # some labels for positive pairs

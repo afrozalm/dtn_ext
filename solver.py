@@ -139,6 +139,12 @@ class Solver(object):
             return np.asarray(neg_ones), np.asarray(neg_twos)
 
     def pretrain(self):
+
+        # make directory if not exists
+        if tf.gfile.Exists(self.log_dir):
+            tf.gfile.DeleteRecursively(self.log_dir)
+        tf.gfile.MakeDirs(self.log_dir)
+
         # load real faces
         train_images_r, train_labels_r = self.load_real(self.real_dir,
                                                         split='train')

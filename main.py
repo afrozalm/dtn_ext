@@ -5,6 +5,7 @@ from solver import Solver
 flags = tf.app.flags
 flags.DEFINE_string('mode', 'train', "'pretrain', 'train' or 'eval'")
 flags.DEFINE_float('margin', 512.0, "margin for negative class")
+flags.DEFINE_float('pos_weight', 1.0, "weight to ucn pos loss")
 flags.DEFINE_float('ucn_weight', 5.0, "weight to ucn loss")
 flags.DEFINE_float('f_weight', 3.0, "weight to dtn's f-constancy")
 flags.DEFINE_integer('n_classes', 200, "number of classes")
@@ -36,6 +37,7 @@ def main(_):
                 n_classes=FLAGS.n_classes,
                 margin=FLAGS.margin,
                 ucn_weight=FLAGS.ucn_weight,
+                pos_weight=FLAGS.pos_weight,
                 f_weight=FLAGS.f_weight,
                 reconst_weight=FLAGS.reconst_weight)
 

@@ -357,8 +357,9 @@ class Solver(object):
                         sampled_batch_images = sess.run(model.sampled_images,
                                                         feed_dict)
 
-                        # merge and save source images and sampled target images
-                        merged = self.merge_images(batch_images, sampled_batch_images)
+                        # merge and save source images and sampled target image
+                        merged = self.merge_images(batch_images,
+                                                   sampled_batch_images)
                         path = os.path.join(self.sample_save_path,
                                             'sample-%d-to-%d.png' %
                                             (i * self.batch_size,

@@ -349,6 +349,23 @@ class Solver(object):
                         self.model_save_path, 'dtn_ext'), global_step=step + 1)
                     print ('model/dtn_ext-%d saved' % (step + 1))
 
+                if (step + 1) % 1000 == 0:
+                    for i in range(self.sample_iter):
+                        # train model for source domain S
+                        batch_images = self.loader.next_batch('real_images')
+                        feed_dict = {model.images: batch_images}
+                        sampled_batch_images = sess.run(model.sampled_images,
+                                                        feed_dict)
+
+                        # merge and save source images and sampled target images
+                        merged = self.merge_images(batch_images, sampled_batch_images)
+                        path = os.path.join(self.sample_save_path,
+                                            'sample-%d-to-%d.png' %
+                                            (i * self.batch_size,
+                                             (i + 1) * self.batch_size))
+                        scipy.misc.imsave(path, merged)
+                        print ('saved %s' % path)
+
     def eval(self):
         # build model
         model = self.model

@@ -353,8 +353,8 @@ class Solver(object):
                     for i in range(self.sample_iter):
                         # train model for source domain S
                         batch_images = self.loader.next_batch('real_images')
-                        feed_dict = {model.images: batch_images}
-                        sampled_batch_images = sess.run(model.sampled_images,
+                        feed_dict = {model.src_images: batch_images}
+                        sampled_batch_images = sess.run(model.fake_images,
                                                         feed_dict)
 
                         # merge and save source images and sampled target images

@@ -323,8 +323,6 @@ class Solver(object):
                            % (step + 1, self.train_iter, dl, gl, fl))
 
                 # train the model for target domain T
-                # j = step % int(caric_images.shape[0] / self.batch_size)
-                # trg_images = caric_images[j * self.batch_size:(j + 1) * self.batch_size]
                 trg_images = self.loader.next_batch('caric_images')
                 feed_dict = {model.src_images: src_images,
                              model.trg_images: trg_images,
@@ -362,10 +360,20 @@ class Solver(object):
                                 data_ptr=real_images)
 
         with tf.Session(config=self.config) as sess:
-            # load trained parameters
-            print ('loading test model..')
-            saver = tf.train.Saver()
-            saver.restore(sess, self.test_model)
+            # initialize G and D
+            tf.global_variables_initializer().run()
+            # restore variables of F and G
+            print ('loading pretrained model F..')
+            f_variables_to_restore = \
+                slim.get_model_variables(scope='content_extractor')
+            f_restorer = tf.train.Saver(f_variables_to_restore)
+            f_restorer.restore(sess, self.test_model)
+
+            print ('loading pretrained model G..')
+            g_variables_to_restore = \
+                slim.get_model_variables(scope='generator')
+            g_restorer = tf.train.Saver(g_variables_to_restore)
+            g_restorer.restore(sess, self.test_model)
 
             print ('start sampling..!')
             for i in range(self.sample_iter):
@@ -379,6 +387,7 @@ class Solver(object):
                 merged = self.merge_images(batch_images, sampled_batch_images)
                 path = os.path.join(self.sample_save_path,
                                     'sample-%d-to-%d.png' %
-                                    (i * self.batch_size, (i + 1) * self.batch_size))
+                                    (i * self.batch_size,
+                                     (i + 1) * self.batch_size))
                 scipy.misc.imsave(path, merged)
                 print ('saved %s' % path)
